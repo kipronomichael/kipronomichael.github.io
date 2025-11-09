@@ -1,0 +1,346 @@
+
+BRIANSEVERALL SOLUTIONS
+12:18 (22 minutes ago)
+to me
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STIMAPOWER SOLUTIONS — Invoice & Quotation Generator</title>
+
+<!-- jsPDF + AutoTable -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+  *{box-sizing:border-box;font-family:Poppins,Segoe UI,Roboto,Arial,sans-serif}
+  body{background:#f4f7fc;color:#001d3d;display:flex;flex-direction:column;align-items:center;padding:30px}
+  h1{color:#003566;margin-bottom:14px;display:flex;align-items:center;gap:8px;font-size:22px}
+  .card{background:#fff;border:2px solid #003566;border-radius:12px;padding:20px;width:760px;box-shadow:0 6px 20px rgba(0,0,0,0.06)}
+  label{display:block;font-weight:600;margin-top:10px;font-size:13px}
+  input,select,textarea{width:100%;padding:9px;border-radius:8px;border:1px solid #ccc;margin-top:6px}
+  .row{display:flex;gap:12px}
+  .col{flex:1}
+  .small{width:180px}
+  button{background:#003566;color:#fff;padding:12px 18px;border-radius:8px;border:0;font-weight:700;cursor:pointer}
+  button:hover{background:#00509d}
+  #clearBtn{background:#d62828;}
+  #clearBtn:hover{background:#b91c1c;}
+  #mpesaCodeContainerInvoice{display:none}
+  .note{font-size:13px;color:#444;margin-top:10px}
+  .top-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+  .items-table{border-collapse:collapse;width:100%;margin-top:8px}
+  .items-table th,.items-table td{border:1px solid #ddd;padding:8px;font-size:13px}
+  .items-table th{background:#e7f0fb;color:#003566}
+</style>
+</head>
+<body>
+<h1>STIMAPOWER SOLUTIONS</h1>
+
+<div class="card">
+  <div class="top-actions">
+    <div>
+      <label>Document Type</label>
+      <select id="docType">
+        <option value="invoice">Invoice</option>
+        <option value="quotation">Quotation</option>
+      </select>
+    </div>
+    <div style="text-align:right">
+      <label>Prepared By</label>
+      <select id="preparedBy" style="width:220px">
+        <option value="Michael Kiprono - Engineer">Michael Kiprono - Engineer</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- INVOICE FORM -->
+  <div id="invoiceForm">
+    <div class="row">
+      <div class="col">
+        <label>Customer Name</label>
+        <input id="invCustomer" placeholder="Customer full name">
+      </div>
+      <div class="col small">
+        <label>Date</label>
+        <input id="invDate" type="date">
+      </div>
+    </div>
+
+    <label>Service / Description</label>
+    <input id="invService" placeholder="e.g. Electrical Installation / Repair">
+
+    <div class="row">
+      <div class="col">
+        <label>Total Amount (Ksh)</label>
+        <input id="invTotal" type="number" min="0" step="0.01" placeholder="0.00">
+      </div>
+      <div class="col">
+        <label>Amount Paid (Ksh)</label>
+        <input id="invPaid" type="number" min="0" step="0.01" placeholder="0.00">
+      </div>
+      <div class="col small">
+        <label>Payment Method</label>
+        <select id="invPayment">
+          <option value="">Select</option>
+          <option value="Cash">Cash</option>
+          <option value="M-Pesa">M-Pesa</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="mpesaCodeContainerInvoice">
+      <label>M-Pesa Transaction Code</label>
+      <input id="invMpesaCode" maxlength="15" placeholder="e.g. QWE12345XY">
+    </div>
+
+    <div class="note">
+      <strong>Pay to M-Pesa:</strong> 0797819168 (Michael Kiprono)
+    </div>
+  </div>
+
+  <!-- QUOTATION FORM -->
+  <div id="quotationForm" style="display:none;margin-top:12px">
+    <div class="row">
+      <div class="col">
+        <label>Client Name</label>
+        <input id="qClient" placeholder="Client full name">
+      </div>
+      <div class="col small">
+        <label>Quote Date</label>
+        <input id="qDate" type="date">
+      </div>
+      <div class="col small">
+        <label>Valid Until</label>
+        <input id="qValidUntil" type="date">
+      </div>
+    </div>
+
+    <label>Items (press Enter to add next row)</label>
+    <table class="items-table" id="itemsTable">
+      <thead>
+        <tr>
+          <th>S/No</th>
+          <th>Item</th>
+          <th>Description</th>
+          <th>Unit</th>
+          <th>Qty</th>
+          <th>Rate (Ksh)</th>
+          <th>Total Amount (Ksh)</th>
+        </tr>
+      </thead>
+      <tbody id="itemsBody"></tbody>
+    </table>
+    <div style="text-align:right;margin-top:10px">
+      <strong>Total: </strong><span id="qTotal">0.00</span> Ksh
+    </div>
+  </div>
+
+  <div style="margin-top:20px;text-align:right;display:flex;justify-content:flex-end;gap:10px;">
+    <button id="clearBtn">Clear Form</button>
+    <button id="printBtn">Generate Professional PDF</button>
+  </div>
+</div>
+
+<script>
+const { jsPDF } = window.jspdf;
+const docType = document.getElementById("docType");
+const invoiceForm = document.getElementById("invoiceForm");
+const quotationForm = document.getElementById("quotationForm");
+const invPayment = document.getElementById("invPayment");
+const mpesaContainer = document.getElementById("mpesaCodeContainerInvoice");
+const itemsBody = document.getElementById("itemsBody");
+const qTotal = document.getElementById("qTotal");
+const clearBtn = document.getElementById("clearBtn");
+
+docType.onchange = () => {
+  invoiceForm.style.display = docType.value === "invoice" ? "block" : "none";
+  quotationForm.style.display = docType.value === "quotation" ? "block" : "none";
+};
+
+invPayment.onchange = () => {
+  mpesaContainer.style.display = invPayment.value === "M-Pesa" ? "block" : "none";
+};
+
+addItemRow();
+function addItemRow() {
+  const row = document.createElement("tr");
+  const idx = itemsBody.children.length + 1;
+  row.innerHTML = `
+    <td>${idx}</td>
+    <td><input class="item" placeholder="Item name"></td>
+    <td><input class="desc" placeholder="Description"></td>
+    <td><input class="unit" placeholder="Unit e.g. pcs"></td>
+    <td><input class="qty" type="number" min="0" value="1"></td>
+    <td><input class="rate" type="number" min="0" step="0.01"></td>
+    <td><input class="amount" type="number" readonly></td>`;
+  itemsBody.appendChild(row);
+
+  row.querySelectorAll("input").forEach(i => {
+    i.addEventListener("input", updateTotals);
+    i.addEventListener("keydown", e => {
+      if (e.key === "Enter" && row === itemsBody.lastElementChild) {
+        e.preventDefault();
+        addItemRow();
+      }
+    });
+  });
+}
+
+function updateTotals() {
+  let total = 0;
+  itemsBody.querySelectorAll("tr").forEach(row => {
+    const qty = parseFloat(row.querySelector(".qty").value) || 0;
+    const rate = parseFloat(row.querySelector(".rate").value) || 0;
+    const amount = qty * rate;
+    row.querySelector(".amount").value = amount.toFixed(2);
+    total += amount;
+  });
+  qTotal.textContent = total.toFixed(2);
+}
+
+// CLEAR FORM BUTTON FUNCTION
+clearBtn.onclick = () => {
+  if (!confirm("Are you sure you want to clear all fields?")) return;
+  document.querySelectorAll("input").forEach(i => i.value = "");
+  qTotal.textContent = "0.00";
+  itemsBody.innerHTML = "";
+  addItemRow();
+  invPayment.value = "";
+  mpesaContainer.style.display = "none";
+  document.getElementById("qValidUntil").value = "";
+  document.getElementById("qDate").value = "";
+  document.getElementById("invDate").value = "";
+};
+
+// ================== PDF GENERATION ==================
+document.getElementById("printBtn").onclick = () => {
+  const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "A4" });
+  const blue = [0, 53, 102];
+  const lightBlue = [230, 242, 255];
+  const margin = 40;
+  const pageWidth = pdf.internal.pageSize.width;
+  const pageHeight = pdf.internal.pageSize.height;
+
+  pdf.setDrawColor(...blue);
+  pdf.setLineWidth(1.2);
+  pdf.rect(margin, margin, pageWidth - 2 * margin, pageHeight - 2 * margin);
+
+  pdf.setFontSize(16);
+  pdf.setTextColor(...blue);
+  pdf.text("STIMAPOWER SOLUTIONS", pageWidth / 2, 70, { align: "center" });
+  pdf.setFontSize(12);
+  pdf.text(docType.value === "invoice" ? "Official Invoice" : "Official Quotation", pageWidth / 2, 90, { align: "center" });
+
+  const preparedBy = document.getElementById("preparedBy").value;
+  let y = 130;
+
+  if (docType.value === "invoice") {
+    const name = document.getElementById("invCustomer").value;
+    const date = document.getElementById("invDate").value;
+    const service = document.getElementById("invService").value;
+    const total = parseFloat(document.getElementById("invTotal").value || 0);
+    const paid = parseFloat(document.getElementById("invPaid").value || 0);
+    const method = document.getElementById("invPayment").value;
+    const mpesa = document.getElementById("invMpesaCode").value;
+
+    pdf.setFontSize(11);
+    pdf.setTextColor(0);
+    pdf.text(`Invoice No: INV-${Math.floor(Math.random() * 1000000)}`, 60, y);
+    pdf.text(`Date: ${date}`, pageWidth - 200, y);
+    y += 25;
+    pdf.text(`Bill To: ${name}`, 60, y);
+    y += 20;
+    pdf.text(`Served By: ${preparedBy}`, 60, y);
+
+    y += 30;
+    pdf.setDrawColor(...blue);
+    pdf.setFillColor(...lightBlue);
+    pdf.roundedRect(60, y, pageWidth - 120, 80, 4, 4, "FD");
+    pdf.setFontSize(11);
+    pdf.setTextColor(...blue);
+    pdf.text("Description", 70, y + 18);
+    pdf.setTextColor(0);
+    pdf.text(service || "No description provided", 70, y + 40);
+
+    y += 120;
+    pdf.setFontSize(11);
+    pdf.setTextColor(...blue);
+    pdf.text(`Total Due: Ksh ${total.toFixed(2)}`, pageWidth / 2, y, { align: "center" });
+    y += 20;
+    pdf.text(`Amount Paid: Ksh ${paid.toFixed(2)}`, pageWidth / 2, y, { align: "center" });
+    y += 20;
+    pdf.setFontSize(11.5);
+    pdf.setTextColor(0, 128, 0);
+    const status = paid >= total ? "FULLY PAID" : "BALANCE DUE";
+    pdf.text(status, pageWidth / 2, y, { align: "center" });
+
+    y += 40;
+    pdf.setFontSize(10.5);
+    pdf.setTextColor(0);
+    pdf.text(`Payment Method: ${method || "-"}`, 60, y);
+    if (method === "M-Pesa" && mpesa) {
+      y += 18;
+      pdf.text(`M-Pesa Code: ${mpesa}`, 60, y);
+    }
+    y += 20;
+    pdf.text("Pay to: 0797819168 (Michael Kiprono)", 60, y);
+  } else {
+    const client = document.getElementById("qClient").value;
+    const date = document.getElementById("qDate").value;
+    const valid = document.getElementById("qValidUntil").value;
+
+    pdf.setFontSize(11);
+    pdf.setTextColor(0);
+    pdf.text(`Date: ${date}`, 60, y);
+    pdf.text(`Valid Until: ${valid}`, pageWidth - 200, y);
+    y += 25;
+    pdf.text(`Prepared For: ${client}`, 60, y);
+    y += 20;
+    pdf.text(`Prepared By: ${preparedBy}`, 60, y);
+    y += 20;
+
+    const rows = [];
+    itemsBody.querySelectorAll("tr").forEach((row, i) => {
+      const item = row.querySelector(".item").value;
+      const desc = row.querySelector(".desc").value;
+      const unit = row.querySelector(".unit").value;
+      const qty = row.querySelector(".qty").value;
+      const rate = row.querySelector(".rate").value;
+      const amt = row.querySelector(".amount").value;
+      if (item || desc || rate) rows.push([i + 1, item, desc, unit, qty, rate, amt]);
+    });
+
+    pdf.autoTable({
+      startY: y + 10,
+      head: [["S/No", "Item", "Description", "Unit", "Qty", "Rate (Ksh)", "Total Amount (Ksh)"]],
+      body: rows,
+      theme: "grid",
+      styles: { halign: "center", fontSize: 10 },
+      headStyles: { fillColor: blue, textColor: 255 },
+      margin: { left: 60, right: 60 }
+    });
+
+    let finalY = pdf.lastAutoTable.finalY + 25;
+    pdf.setDrawColor(...blue);
+    pdf.setLineWidth(0.8);
+    pdf.line(60, finalY - 10, pageWidth - 60, finalY - 10);
+    pdf.text(`Total: Ksh ${qTotal.textContent}`, pageWidth - 100, finalY + 5, { align: "right" });
+  }
+
+  // Footer
+  pdf.setDrawColor(...blue);
+  pdf.setLineWidth(0.5);
+  pdf.line(60, pageHeight - 70, pageWidth - 60, pageHeight - 70);
+
+  pdf.setFontSize(9);
+  pdf.setTextColor(100);
+  pdf.text("Thank you for choosing STIMAPOWER SOLUTIONS. We appreciate your business!", pageWidth / 2, pageHeight - 55, { align: "center" });
+
+  pdf.save(`${docType.value}_STIMAPOWER_SOLUTIONS.pdf`);
+};
+</script>
+</body>
+</html>
