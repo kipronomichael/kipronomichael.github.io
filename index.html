@@ -196,7 +196,7 @@ function updateTotals() {
   qTotal.textContent = total.toFixed(2);
 }
 
-// CLEAR FORM BUTTON FUNCTION
+// ================= CLEAR FORM =================
 clearBtn.onclick = () => {
   if (!confirm("Are you sure you want to clear all fields?")) return;
   document.querySelectorAll("input").forEach(i => i.value = "");
@@ -232,6 +232,7 @@ document.getElementById("printBtn").onclick = () => {
   const preparedBy = document.getElementById("preparedBy").value;
   let y = 130;
 
+  // ===================== INVOICE PDF =====================
   if (docType.value === "invoice") {
     const name = document.getElementById("invCustomer").value;
     const date = document.getElementById("invDate").value;
@@ -282,7 +283,10 @@ document.getElementById("printBtn").onclick = () => {
     }
     y += 20;
     pdf.text("Pay to: 0797819168 (Michael Kiprono)", 60, y);
-  } else {
+  }
+
+  // ===================== QUOTATION PDF =====================
+  else {
     const client = document.getElementById("qClient").value;
     const date = document.getElementById("qDate").value;
     const valid = document.getElementById("qValidUntil").value;
@@ -319,10 +323,22 @@ document.getElementById("printBtn").onclick = () => {
     });
 
     let finalY = pdf.lastAutoTable.finalY + 25;
+
+    // Total Line
     pdf.setDrawColor(...blue);
     pdf.setLineWidth(0.8);
     pdf.line(60, finalY - 10, pageWidth - 60, finalY - 10);
     pdf.text(`Total: Ksh ${qTotal.textContent}`, pageWidth - 100, finalY + 5, { align: "right" });
+
+    // ******* ADDED NOTE *******
+    finalY += 25;
+    pdf.setFontSize(10);
+    pdf.setTextColor(200, 0, 0);
+    pdf.text(
+      "NOTE: Price can fluctuate depending on electrical shops.",
+      60,
+      finalY
+    );
   }
 
   // Footer
